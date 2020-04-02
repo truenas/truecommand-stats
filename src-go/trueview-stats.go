@@ -123,7 +123,7 @@ func ParseArcstat( cmd *exec.Cmd, done chan ArcstatSummary ) {
   var headers []string
   for index, line := range(lines) {
     elem := delete_empty( strings.Split( strings.TrimSpace(line), " ") )
-    if(index<2){ headers = elem; continue } //store for a moment
+    if(index<1){ headers = elem; continue } //store for a moment
     //Dynamically read the headers to figure out which values go where.
     // Makes it a bit more reliable for changes to the arcstat tool from upstream
     for index, label := range(headers) {

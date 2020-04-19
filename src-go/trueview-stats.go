@@ -12,50 +12,55 @@ import (
 )
 
 type GstatSummary struct {
-	Name string	`json:"Name"`
-	Lq		float64	`json:"L(Q)"`
-	Ops		float64	`json:"ops/s"`
-	Rs		float64	`json:"r/s"`
-	Rkb		float64	`json:"kB r"`
-	Rkbps	float64	`json:"kBps r"`
-	Msr		float64	`json:"ms/r"`
-	Ws		float64	`json:"w/s"`
-	Wkb		float64	`json:"kB w"`
-	Wkbps	float64	`json:"kBps w"`
-	Msw		float64	`json:"ms/w"`
-	Busy	float64	`json:"%busy"`
+	Name string	                            `json:"Name"`
+	Lq		float64	                          `json:"L(Q)"`
+	Ops		float64	                          `json:"ops/s"`
+	Rs		float64	                          `json:"r/s"`
+	Rkb		float64	                          `json:"kB r"`
+	Rkbps	float64	                          `json:"kBps r"`
+	Msr		float64	                          `json:"ms/r"`
+	Ws		float64	                          `json:"w/s"`
+	Wkb		float64	                          `json:"kB w"`
+	Wkbps	float64	                          `json:"kBps w"`
+	Msw		float64	                          `json:"ms/w"`
+	Busy	float64	                          `json:"%busy"`
 }
 
 type IfstatSummary struct {
-	Name string		`json:"name"`
-	InKB string		`json:"KB/s in"`
-	OutKB string		`json:"KB/s out"`
+	Name string		                          `json:"name"`
+	InKB string		                          `json:"KB/s in"`
+	OutKB string		                        `json:"KB/s out"`
 }
 
 type ArcstatSummary struct {
-	Read float64		`json:"read"`
-	Miss float64		`json:"miss"`
-	MissPerc float64	`json:"miss%"`
-	Dmis float64		`json:"dmis"`
-	DmisPerc float64	`json:"dm%"`
-	Pmis float64		`json:"pmis"`
-	PmisPerc float64	`json:"pm%"`
-	Mmis float64		`json:"mmis"`
-	MmisPerc float64	`json:"mm%"`
-	ArcSz string		`json:"arcsz"`
-	C string			`json:"c"`
+	Read float64		                        `json:"read"`
+	Miss float64		                        `json:"miss"`
+	MissPerc float64	                      `json:"miss%"`
+	Dmis float64		                        `json:"dmis"`
+	DmisPerc float64	                      `json:"dm%"`
+	Pmis float64		                        `json:"pmis"`
+	PmisPerc float64	                      `json:"pm%"`
+	Mmis float64		                        `json:"mmis"`
+	MmisPerc float64	                      `json:"mm%"`
+	ArcSz string		                        `json:"arcsz"`
+	C string			                          `json:"c"`
+}
+
+type SMBSummary struct {
+	ConnectionCount int                     `json:"connection_count"`
 }
 
 type OutputJson struct {
-	Time int64			`json:"time_t"`
-	MemSum interface{}	`json:"memory_summary,omitempty"`
-	VmstatSum interface{}	`json:"vmstat_summary,omitempty"`
-	NetSum interface{}		`json:"netstat_summary,omitempty"`
-	NetUsage []IfstatSummary	`json:"network_usage,omitempty"`
-	ProcStats interface{}	`json:"process_stats,omitempty"`
-	Gstat []GstatSummary		`json:"gstat_summary,omitempty"`
-	ArcStats ArcstatSummary		`json:"zfs_arcstats,omitempty"`
-	TempStats map[string]interface{}		`json:"cpu_temperatures,omitempty"`
+	Time int64			                        `json:"time_t"`
+	MemSum interface{}	                    `json:"memory_summary,omitempty"`
+	VmstatSum interface{}	                  `json:"vmstat_summary,omitempty"`
+	NetSum interface{}		                  `json:"netstat_summary,omitempty"`
+	NetUsage []IfstatSummary	              `json:"network_usage,omitempty"`
+	ProcStats interface{}	                  `json:"process_stats,omitempty"`
+	Gstat []GstatSummary		                `json:"gstat_summary,omitempty"`
+	ArcStats ArcstatSummary		              `json:"zfs_arcstats,omitempty"`
+  TempStats map[string]interface{}		    `json:"cpu_temperatures,omitempty"`
+  SMB map[string]interface{}              `json:"smb,omitempty"`
 }
 
 func delete_empty (s []string) []string {
@@ -208,6 +213,28 @@ func ParseSysctlTemperatures( cmd *exec.Cmd , filter string, done chan map[strin
   done <- ojs
 }
 
+func ParseSMBStatus( cmd *exec.Cmd, done chan map[string]interface{} ) {
+  // Example output:
+  // Samba version 4.12.1
+  // PID     Username     Group        Machine                                   Protocol Version  Encryption           Signing              
+  // ----------------------------------------------------------------------------------------------------------------------------------------
+  // 38807   aervin       aervin       computron9000 (ipv4:192.168.1.232:57030)  NT1               -                    -                    
+  // 38806   aervin       aervin       computron9000 (ipv4:192.168.1.232:57002)  NT1  
+  // 
+  // Chop off the first three lines of output, then count the remaining
+  // lines to get the client connection count.
+  var ob bytes.Buffer
+  cmd.Stdout = &ob
+  err := cmd.Run()
+  var tmp SMBSummary
+  if err != nil { done <- tmp ; return }
+  var clientsUnparsed := strings.Split(ob.String(), "\n")
+  if len(clientsUnparsed) <= 3 { tmp.ConnectionCount = 0 ; done <- tmp ; return }
+  tmp.ConnectionCount = len(clientsUnparsed[3:])
+  // Other SMB stats can be parsed here in future
+  done <- tmp
+}
+
 func main() {
   var out OutputJson
   out.Time = time.Now().Unix()
@@ -231,9 +258,11 @@ func main() {
     go ParseArcstat( exec.Command("arcstat.py"), chanG)   //FreeNAS 11.3-
   }
   chanH := make(chan map[string]interface{})
-  go ParseSysctlTemperatures( exec.Command("sysctl","-q","dev.cpu"), "temperature", chanH);
+  go ParseSysctlTemperatures( exec.Command("sysctl","-q","dev.cpu"), "temperature", chanH)
+  chanI := make(chan SMBSummary)
+  go ParseSMBStatus( exec.Command("smbstatus","-b"), chanI )
   //Assign all the channels to the output fields
-  out.MemSum, out.VmstatSum, out.NetSum, out.NetUsage, out.ProcStats, out.Gstat, out.ArcStats, out.TempStats = <-chanA, <-chanB, <-chanC, <-chanD, <-chanE, <-chanF, <-chanG, <-chanH
+  out.MemSum, out.VmstatSum, out.NetSum, out.NetUsage, out.ProcStats, out.Gstat, out.ArcStats, out.TempStats, out.SMB = <-chanA, <-chanB, <-chanC, <-chanD, <-chanE, <-chanF, <-chanG, <-chanH, <-chanI
   //Print out the JSON
   tmp, _ := json.Marshal(out)
   fmt.Println( string(tmp) )

@@ -12,42 +12,42 @@ import (
 )
 
 type GstatSummary struct {
-	Name string	                            `json:"Name"`
-	Lq		float64	                          `json:"L(Q)"`
-	Ops		float64	                          `json:"ops/s"`
-	Rs		float64	                          `json:"r/s"`
-	Rkb		float64	                          `json:"kB r"`
-	Rkbps	float64	                          `json:"kBps r"`
-	Msr		float64	                          `json:"ms/r"`
-	Ws		float64	                          `json:"w/s"`
-	Wkb		float64	                          `json:"kB w"`
-	Wkbps	float64	                          `json:"kBps w"`
-	Msw		float64	                          `json:"ms/w"`
-	Busy	float64	                          `json:"%busy"`
+  Name string                               `json:"Name"`
+  Lq    float64                             `json:"L(Q)"`
+  Ops   float64                             `json:"ops/s"`
+  Rs    float64                             `json:"r/s"`
+  Rkb   float64                             `json:"kB r"`
+  Rkbps float64                             `json:"kBps r"`
+  Msr   float64                             `json:"ms/r"`
+  Ws    float64                             `json:"w/s"`
+  Wkb   float64                             `json:"kB w"`
+  Wkbps float64                             `json:"kBps w"`
+  Msw   float64                             `json:"ms/w"`
+  Busy  float64                             `json:"%busy"`
 }
 
 type IfstatSummary struct {
-	Name string		                          `json:"name"`
-	InKB string		                          `json:"KB/s in"`
-	OutKB string		                        `json:"KB/s out"`
+  Name string                               `json:"name"`
+  InKB string                               `json:"KB/s in"`
+  OutKB string                              `json:"KB/s out"`
 }
 
 type ArcstatSummary struct {
-	Read float64		                        `json:"read"`
-	Miss float64		                        `json:"miss"`
-	MissPerc float64	                      `json:"miss%"`
-	Dmis float64		                        `json:"dmis"`
-	DmisPerc float64	                      `json:"dm%"`
-	Pmis float64		                        `json:"pmis"`
-	PmisPerc float64	                      `json:"pm%"`
-	Mmis float64		                        `json:"mmis"`
-	MmisPerc float64	                      `json:"mm%"`
-	ArcSz string		                        `json:"arcsz"`
-	C string			                          `json:"c"`
+  Read float64                              `json:"read"`
+  Miss float64                              `json:"miss"`
+  MissPerc float64                          `json:"miss%"`
+  Dmis float64                              `json:"dmis"`
+  DmisPerc float64                          `json:"dm%"`
+  Pmis float64                              `json:"pmis"`
+  PmisPerc float64                          `json:"pm%"`
+  Mmis float64                              `json:"mmis"`
+  MmisPerc float64                          `json:"mm%"`
+  ArcSz string                              `json:"arcsz"`
+  C string                                  `json:"c"`
 }
 
 type SMBSummary struct {
-	ConnectionCount int                     `json:"connection_count"`
+  ConnectionCount int                       `json:"connection_count"`
 }
 
 type OutputJson struct {

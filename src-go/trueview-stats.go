@@ -51,16 +51,16 @@ type SMBSummary struct {
 }
 
 type OutputJson struct {
-	Time int64			                        `json:"time_t"`
-	MemSum interface{}	                    `json:"memory_summary,omitempty"`
-	VmstatSum interface{}	                  `json:"vmstat_summary,omitempty"`
-	NetSum interface{}		                  `json:"netstat_summary,omitempty"`
-	NetUsage []IfstatSummary	              `json:"network_usage,omitempty"`
-	ProcStats interface{}	                  `json:"process_stats,omitempty"`
-	Gstat []GstatSummary		                `json:"gstat_summary,omitempty"`
-	ArcStats ArcstatSummary		              `json:"zfs_arcstats,omitempty"`
-  TempStats map[string]interface{}		    `json:"cpu_temperatures,omitempty"`
-  SMB map[string]interface{}              `json:"smb,omitempty"`
+  Time int64                                `json:"time_t"`
+  MemSum interface{}                        `json:"memory_summary,omitempty"`
+  VmstatSum interface{}                     `json:"vmstat_summary,omitempty"`
+  NetSum interface{}                        `json:"netstat_summary,omitempty"`
+  NetUsage []IfstatSummary                  `json:"network_usage,omitempty"`
+  ProcStats interface{}                     `json:"process_stats,omitempty"`
+  Gstat []GstatSummary                      `json:"gstat_summary,omitempty"`
+  ArcStats ArcstatSummary                   `json:"zfs_arcstats,omitempty"`
+  TempStats map[string]interface{}          `json:"cpu_temperatures,omitempty"`
+  SMB map[string]interface{}                `json:"smb,omitempty"`
 }
 
 func delete_empty (s []string) []string {

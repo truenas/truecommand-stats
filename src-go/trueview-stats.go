@@ -46,8 +46,8 @@ type ArcstatSummary struct {
   C string                                  `json:"c"`
 }
 
-type SMBSummary struct {
-  ConnectionCount int                       `json:"connection_count"`
+type ServiceSummary struct {
+  ClientCount int                       `json:"client_count"`
 }
 
 type OutputJson struct {
@@ -60,7 +60,8 @@ type OutputJson struct {
   Gstat []GstatSummary                      `json:"gstat_summary,omitempty"`
   ArcStats ArcstatSummary                   `json:"zfs_arcstats,omitempty"`
   TempStats map[string]interface{}          `json:"cpu_temperatures,omitempty"`
-  SMB map[string]interface{}                `json:"smb,omitempty"`
+  SMB ServiceSummary                        `json:"smb,omitempty"`
+  NFS ServiceSummary                        `json:"nfs,omitempty"`
 }
 
 func delete_empty (s []string) []string {
@@ -213,7 +214,7 @@ func ParseSysctlTemperatures( cmd *exec.Cmd , filter string, done chan map[strin
   done <- ojs
 }
 
-func ParseSMBStatus( cmd *exec.Cmd, done chan map[string]interface{} ) {
+func ParseSMBStatus( cmd *exec.Cmd, done chan ServiceSummary ) {
   // Example output:
   // Samba version 4.12.1
   // PID     Username     Group        Machine                                   Protocol Version  Encryption           Signing              
@@ -226,12 +227,30 @@ func ParseSMBStatus( cmd *exec.Cmd, done chan map[string]interface{} ) {
   var ob bytes.Buffer
   cmd.Stdout = &ob
   err := cmd.Run()
-  var tmp SMBSummary
+  var tmp ServiceSummary
   if err != nil { done <- tmp ; return }
   var clientsUnparsed := strings.Split(ob.String(), "\n")
   if len(clientsUnparsed) <= 3 { tmp.ConnectionCount = 0 ; done <- tmp ; return }
   tmp.ConnectionCount = len(clientsUnparsed[3:])
   // Other SMB stats can be parsed here in future
+  done <- tmp
+}
+
+func ParseNFSStatus( cmd *exec.Cmd, done chan ServiceSummary ) {
+  // Example output:
+  // All mount points on localhost:
+  // 10.234.16.36:/mnt/tank_v11/nfs_share
+  // 10.234.16.36:/mnt/tank_v11/tc_test_data
+  //
+  // Note that the same address can have multiple connections
+  var ob bytes.Buffer
+  cmd.Stdout = &ob
+  err := cmd.Run()
+  var tmp ServiceSummary
+  if err != nil { done <- tmp ; return }
+  var lines := strings.Split(ob.String(), "\n")
+  if len(lines) < 2 { tmp.ConnectionCount = 0 ; done <- tmp ; return }
+  tmp.ConnectionCount = len(lines[1:])
   done <- tmp
 }
 
@@ -259,10 +278,12 @@ func main() {
   }
   chanH := make(chan map[string]interface{})
   go ParseSysctlTemperatures( exec.Command("sysctl","-q","dev.cpu"), "temperature", chanH)
-  chanI := make(chan SMBSummary)
+  chanI := make(chan ServiceSummary)
   go ParseSMBStatus( exec.Command("smbstatus","-b"), chanI )
+  chanI := make(chan ServiceSummary)
+  go ParseNFSStatus( exec.Command("showmount","-a", "localhost"), chanJ )
   //Assign all the channels to the output fields
-  out.MemSum, out.VmstatSum, out.NetSum, out.NetUsage, out.ProcStats, out.Gstat, out.ArcStats, out.TempStats, out.SMB = <-chanA, <-chanB, <-chanC, <-chanD, <-chanE, <-chanF, <-chanG, <-chanH, <-chanI
+  out.MemSum, out.VmstatSum, out.NetSum, out.NetUsage, out.ProcStats, out.Gstat, out.ArcStats, out.TempStats, out.SMB, out.NFS = <-chanA, <-chanB, <-chanC, <-chanD, <-chanE, <-chanF, <-chanG, <-chanH, <-chanI, <-chanJ
   //Print out the JSON
   tmp, _ := json.Marshal(out)
   fmt.Println( string(tmp) )

@@ -47,7 +47,7 @@ type ArcstatSummary struct {
 }
 
 type ServiceSummary struct {
-  ClientCount int                       `json:"client_count"`
+  ClientCount int                           `json:"client_count"`
 }
 
 type OutputJson struct {
@@ -231,7 +231,7 @@ func ParseSMBStatus( cmd *exec.Cmd, done chan ServiceSummary ) {
   if err != nil { done <- tmp ; return }
   var clientsUnparsed := strings.Split(ob.String(), "\n")
   if len(clientsUnparsed) <= 3 { tmp.ConnectionCount = 0 ; done <- tmp ; return }
-  tmp.ConnectionCount = len(clientsUnparsed[3:])
+  tmp.ClientCount = len(clientsUnparsed[3:])
   // Other SMB stats can be parsed here in future
   done <- tmp
 }
@@ -250,7 +250,7 @@ func ParseNFSStatus( cmd *exec.Cmd, done chan ServiceSummary ) {
   if err != nil { done <- tmp ; return }
   var lines := strings.Split(ob.String(), "\n")
   if len(lines) < 2 { tmp.ConnectionCount = 0 ; done <- tmp ; return }
-  tmp.ConnectionCount = len(lines[1:])
+  tmp.ClientCount = len(lines[1:])
   done <- tmp
 }
 

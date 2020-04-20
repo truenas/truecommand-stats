@@ -215,6 +215,8 @@ func ParseSysctlTemperatures( cmd *exec.Cmd , filter string, done chan map[strin
   done <- ojs
 }
 
+func 
+
 func ParseSMBStatus( cmd *exec.Cmd, done chan ServiceSummary ) {
   // Example output:
   // Samba version 4.12.1
@@ -230,9 +232,9 @@ func ParseSMBStatus( cmd *exec.Cmd, done chan ServiceSummary ) {
   err := cmd.Run()
   var tmp ServiceSummary
   if err != nil { done <- tmp ; return }
-  var clientsUnparsed := strings.Split(ob.String(), "\n")
-  if len(clientsUnparsed) <= 3 { tmp.ConnectionCount = 0 ; done <- tmp ; return }
-  tmp.ClientCount = len(clientsUnparsed[3:])
+  var lines := strings.Split(ob.String(), "\n")
+  if len(lines) <= 3 { tmp.ConnectionCount = 0 ; done <- tmp ; return }
+  tmp.ClientCount = len(lines[3:])
   // Other SMB stats can be parsed here in future
   done <- tmp
 }

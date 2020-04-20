@@ -62,6 +62,7 @@ type OutputJson struct {
   TempStats map[string]interface{}          `json:"cpu_temperatures,omitempty"`
   SMB ServiceSummary                        `json:"smb,omitempty"`
   NFS ServiceSummary                        `json:"nfs,omitempty"`
+  ISCSI ServiceSummary                      `json:"iscsi,omitempty"`
 }
 
 func delete_empty (s []string) []string {
@@ -254,6 +255,21 @@ func ParseNFSStatus( cmd *exec.Cmd, done chan ServiceSummary ) {
   done <- tmp
 }
 
+func ParseISCSIStatus( cmd *exec.Cmd, done chan ServiceSummary ) {
+  // Example output:
+  // ID Portal           Initiator name                       Target name
+  // 1 10.234.16.36     iqn.1993-08.org.debian:01:51124594c37 iqn.2005-10.org.freenas.ctl:test.iscsi
+  var ob bytes.Buffer
+  cmd.Stdout = &ob
+  err := cmd.Run()
+  var tmp ServiceSummary
+  if err != nil { done <- tmp ; return }
+  var lines := strings.Split(ob.String(), "\n")
+  if len(lines) < 2 { tmp.ConnectionCount = 0 ; done <- tmp ; return }
+  tmp.ClientCount = len(lines[1:])
+  done <- tmp
+}
+
 func main() {
   var out OutputJson
   out.Time = time.Now().Unix()
@@ -282,8 +298,10 @@ func main() {
   go ParseSMBStatus( exec.Command("smbstatus","-b"), chanI )
   chanI := make(chan ServiceSummary)
   go ParseNFSStatus( exec.Command("showmount","-a", "localhost"), chanJ )
+  chanK := make(chan ServiceSummary)
+  go ParseISCSIStatus( exec.Command("ctladm","islist"), chanK )
   //Assign all the channels to the output fields
-  out.MemSum, out.VmstatSum, out.NetSum, out.NetUsage, out.ProcStats, out.Gstat, out.ArcStats, out.TempStats, out.SMB, out.NFS = <-chanA, <-chanB, <-chanC, <-chanD, <-chanE, <-chanF, <-chanG, <-chanH, <-chanI, <-chanJ
+  out.MemSum, out.VmstatSum, out.NetSum, out.NetUsage, out.ProcStats, out.Gstat, out.ArcStats, out.TempStats, out.SMB, out.NFS, out.ISCSI = <-chanA, <-chanB, <-chanC, <-chanD, <-chanE, <-chanF, <-chanG, <-chanH, <-chanI, <-chanJ, <-chanK
   //Print out the JSON
   tmp, _ := json.Marshal(out)
   fmt.Println( string(tmp) )

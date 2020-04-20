@@ -215,8 +215,6 @@ func ParseSysctlTemperatures( cmd *exec.Cmd , filter string, done chan map[strin
   done <- ojs
 }
 
-func 
-
 func ParseSMBStatus( cmd *exec.Cmd, done chan ServiceSummary ) {
   // Example output:
   // Samba version 4.12.1
@@ -232,8 +230,8 @@ func ParseSMBStatus( cmd *exec.Cmd, done chan ServiceSummary ) {
   err := cmd.Run()
   var tmp ServiceSummary
   if err != nil { done <- tmp ; return }
-  var lines := strings.Split(ob.String(), "\n")
-  if len(lines) <= 3 { tmp.ConnectionCount = 0 ; done <- tmp ; return }
+  var lines = strings.Split(ob.String(), "\n")
+  if len(lines) <= 3 { tmp.ClientCount = 0 ; done <- tmp ; return }
   tmp.ClientCount = len(lines[3:])
   // Other SMB stats can be parsed here in future
   done <- tmp
@@ -251,8 +249,8 @@ func ParseNFSStatus( cmd *exec.Cmd, done chan ServiceSummary ) {
   err := cmd.Run()
   var tmp ServiceSummary
   if err != nil { done <- tmp ; return }
-  var lines := strings.Split(ob.String(), "\n")
-  if len(lines) < 2 { tmp.ConnectionCount = 0 ; done <- tmp ; return }
+  var lines = strings.Split(ob.String(), "\n")
+  if len(lines) < 2 { tmp.ClientCount = 0 ; done <- tmp ; return }
   tmp.ClientCount = len(lines[1:])
   done <- tmp
 }
@@ -266,8 +264,8 @@ func ParseISCSIStatus( cmd *exec.Cmd, done chan ServiceSummary ) {
   err := cmd.Run()
   var tmp ServiceSummary
   if err != nil { done <- tmp ; return }
-  var lines := strings.Split(ob.String(), "\n")
-  if len(lines) < 2 { tmp.ConnectionCount = 0 ; done <- tmp ; return }
+  var lines = strings.Split(ob.String(), "\n")
+  if len(lines) < 2 { tmp.ClientCount = 0 ; done <- tmp ; return }
   tmp.ClientCount = len(lines[1:])
   done <- tmp
 }
@@ -298,7 +296,7 @@ func main() {
   go ParseSysctlTemperatures( exec.Command("sysctl","-q","dev.cpu"), "temperature", chanH)
   chanI := make(chan ServiceSummary)
   go ParseSMBStatus( exec.Command("smbstatus","-b"), chanI )
-  chanI := make(chan ServiceSummary)
+  chanJ := make(chan ServiceSummary)
   go ParseNFSStatus( exec.Command("showmount","-a", "localhost"), chanJ )
   chanK := make(chan ServiceSummary)
   go ParseISCSIStatus( exec.Command("ctladm","islist"), chanK )

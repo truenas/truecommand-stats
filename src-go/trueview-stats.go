@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"strings"
 	"strconv"
+	"context"
 )
 
 type GstatSummary struct {
@@ -272,34 +273,37 @@ func ParseISCSIStatus( cmd *exec.Cmd, done chan ServiceSummary ) {
 
 func main() {
   var out OutputJson
+  ctx, cancel := context.WithTimeout(context.Background(), 1100*time.Millisecond) //failsafe - kill any process that runs too long
+  defer cancel()
+
   out.Time = time.Now().Unix()
   //Read in the JSON
   chanA := make(chan interface{})
-  go ReturnJson( exec.Command("vmstat","-s", "--libxo", "json"), chanA )
+  go ReturnJson( exec.CommandContext(ctx, "vmstat","-s", "--libxo", "json"), chanA )
   chanB := make(chan interface{})
-  go ReturnJson( exec.Command("vmstat","-P", "--libxo", "json"), chanB )
+  go ReturnJson( exec.CommandContext(ctx, "vmstat","-P", "--libxo", "json"), chanB )
   chanC := make(chan interface{})
-  go ReturnJson( exec.Command("netstat","-i", "-s", "--libxo", "json"), chanC ) //This always takes 1 second (no adjustments)
+  go ReturnJson( exec.CommandContext(ctx, "netstat","-i", "-s", "--libxo", "json"), chanC ) //This always takes 1 second (no adjustments)
   chanD := make(chan []IfstatSummary)
-  go ParseIfstat( exec.Command("ifstat","-a", "-T", "1", "1"), chanD ) //Also have this take 1 second (as much data as possible)
+  go ParseIfstat( exec.CommandContext(ctx, "ifstat","-a", "-T", "1", "1"), chanD ) //Also have this take 1 second (as much data as possible)
   chanE := make(chan interface{})
-  go ReturnJson( exec.Command("ps","--libxo", "json", "-ax", "-o", "pid,ppid,jail,jid,%cpu,systime,%mem,vsz,rss,state,nlwp,comm"), chanE )
+  go ReturnJson( exec.CommandContext(ctx, "ps","--libxo", "json", "-ax", "-o", "pid,ppid,jail,jid,%cpu,systime,%mem,vsz,rss,state,nlwp,comm"), chanE )
   chanF := make(chan []GstatSummary)
-  go ParseGstat( exec.Command("gstat", "-bps"), chanF );
+  go ParseGstat( exec.CommandContext(ctx, "gstat", "-bps"), chanF );
   chanG := make(chan ArcstatSummary)
   if _, err := os.Stat("/usr/local/bin/arcstat.py") ; err != nil {
-    go ParseArcstat( exec.Command("arcstat"), chanG) //FreeNAS 12.0+ and SCALE
+    go ParseArcstat( exec.CommandContext(ctx, "arcstat"), chanG) //FreeNAS 12.0+ and SCALE
   } else {
-    go ParseArcstat( exec.Command("arcstat.py"), chanG)   //FreeNAS 11.3-
+    go ParseArcstat( exec.CommandContext(ctx, "arcstat.py"), chanG)   //FreeNAS 11.3-
   }
   chanH := make(chan map[string]interface{})
-  go ParseSysctlTemperatures( exec.Command("sysctl","-q","dev.cpu"), "temperature", chanH)
+  go ParseSysctlTemperatures( exec.CommandContext(ctx, "sysctl","-q","dev.cpu"), "temperature", chanH)
   chanI := make(chan ServiceSummary)
-  go ParseSMBStatus( exec.Command("smbstatus","-b"), chanI )
+  go ParseSMBStatus( exec.CommandContext(ctx, "smbstatus","-b"), chanI )
   chanJ := make(chan ServiceSummary)
-  go ParseNFSStatus( exec.Command("showmount","-a", "localhost"), chanJ )
+  go ParseNFSStatus( exec.CommandContext(ctx, "showmount","-a", "localhost"), chanJ )
   chanK := make(chan ServiceSummary)
-  go ParseISCSIStatus( exec.Command("ctladm","islist"), chanK )
+  go ParseISCSIStatus( exec.CommandContext(ctx, "ctladm","islist"), chanK )
   //Assign all the channels to the output fields
   out.MemSum, out.VmstatSum, out.NetSum, out.NetUsage, out.ProcStats, out.Gstat, out.ArcStats, out.TempStats, out.SMB, out.NFS, out.ISCSI = <-chanA, <-chanB, <-chanC, <-chanD, <-chanE, <-chanF, <-chanG, <-chanH, <-chanI, <-chanJ, <-chanK
   //Print out the JSON

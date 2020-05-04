@@ -285,7 +285,7 @@ func main() {
   chanC := make(chan interface{})
   go ReturnJson( exec.CommandContext(ctx, "netstat","-i", "-s", "--libxo", "json"), chanC ) //This always takes 1 second (no adjustments)
   chanD := make(chan []IfstatSummary)
-  go ParseIfstat( exec.CommandContext(ctx, "ifstat","-a", "-T", "1", "1"), chanD ) //Also have this take 1 second (as much data as possible)
+  go ParseIfstat( exec.CommandContext(ctx, "ifstat","-a", "-T", "-b", "1", "1"), chanD ) //Also have this take 1 second (as much data as possible)
   chanE := make(chan interface{})
   go ReturnJson( exec.CommandContext(ctx, "ps","--libxo", "json", "-ax", "-o", "pid,ppid,jail,jid,%cpu,systime,%mem,vsz,rss,state,nlwp,comm"), chanE )
   chanF := make(chan []GstatSummary)

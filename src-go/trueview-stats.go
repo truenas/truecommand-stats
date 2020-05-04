@@ -119,9 +119,16 @@ func ParseGstat( cmd *exec.Cmd, done chan []GstatSummary) {
 }
 
 func ParseArcstat( cmd *exec.Cmd, done chan ArcstatSummary ) {
-//Example output:
-//    time  read  miss  miss%  dmis  dm%  pmis  pm%  mmis  mm%  arcsz     c  
-//10:31:50     0     0      0     0    0     0    0     0    0   1.6G  3.9G  
+  // Example FreeNAS Mini output. Note the leading line.
+
+  // dT: 1.005s  w: 1.000s
+  // L(q)  ops/s    r/s     kB   kBps   ms/r    w/s     kB   kBps   ms/w   %busy Name
+  //    0      0      0      0      0    0.0      0      0      0    0.0    0.0  ada0
+  //   72    540      0      0      0    0.0    540    128  69155  135.7  100.0  ada1
+  //   52    481      3     12     36   17.2    478    127  60670    9.7   62.3  ada2
+  //    0      0      0      0      0    0.0      0      0      0    0.0    0.0  ada3
+  //    0      0      0      0      0    0.0      0      0      0    0.0    0.0  ada4
+ 
   var ob bytes.Buffer
   cmd.Stdout = &ob
   err := cmd.Run()
@@ -130,8 +137,9 @@ func ParseArcstat( cmd *exec.Cmd, done chan ArcstatSummary ) {
   lines := strings.Split(ob.String(), "\n")
   var headers []string
   for index, line := range(lines) {
+    if(index==0) { continue } // Don't need this info
     elem := delete_empty( strings.Split( strings.TrimSpace(line), " ") )
-    if(index<1){ headers = elem; continue } //store for a moment
+    if(index==1){ headers = elem; continue } //store for a moment
     //Dynamically read the headers to figure out which values go where.
     // Makes it a bit more reliable for changes to the arcstat tool from upstream
     for index, label := range(headers) {

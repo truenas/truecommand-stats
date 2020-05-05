@@ -289,7 +289,7 @@ func main() {
   chanA := make(chan interface{})
   go ReturnJson( exec.CommandContext(ctx, "vmstat","-s", "--libxo", "json"), chanA )
   chanB := make(chan interface{})
-  go ReturnJson( exec.CommandContext(ctx, "vmstat","-P", "--libxo", "json"), chanB )
+  go ReturnJson( exec.CommandContext(ctx, "vmstat","-P", "-c", "2", "--libxo", "json"), chanB )
   chanC := make(chan interface{})
   go ReturnJson( exec.CommandContext(ctx, "netstat","-i", "-s", "--libxo", "json"), chanC ) //This always takes 1 second (no adjustments)
   chanD := make(chan []IfstatSummary)

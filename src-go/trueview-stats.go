@@ -240,8 +240,15 @@ func ParseSMBStatus( cmd *exec.Cmd, done chan ServiceSummary ) {
   var tmp ServiceSummary
   if err != nil { done <- tmp ; return }
   var lines = strings.Split(ob.String(), "\n")
-  if len(lines) <= 3 { tmp.ClientCount = 0 ; done <- tmp ; return }
-  tmp.ClientCount = len(lines[3:])
+  startIndex := 0
+  tmp.ClientCount = 0
+  for index, line := range(lines) {
+    if(strings.HasPrefix(line, "--") ){
+      startIndex = index //Found the header dividing line
+    }else if( startIndex > 0 && line != ""){
+      tmp.ClientCount = tmp.ClientCount + 1
+    }
+  }
   // Other SMB stats can be parsed here in future
   done <- tmp
 }
@@ -260,7 +267,10 @@ func ParseNFSStatus( cmd *exec.Cmd, done chan ServiceSummary ) {
   if err != nil { done <- tmp ; return }
   var lines = strings.Split(ob.String(), "\n")
   if len(lines) < 2 { tmp.ClientCount = 0 ; done <- tmp ; return }
-  tmp.ClientCount = len(lines[1:])
+  tmp.ClientCount = 0
+  for index,line := range(lines) {
+    if( line != "" && index > 0){ tmp.ClientCount = tmp.ClientCount +1 }
+  }
   done <- tmp
 }
 
@@ -275,7 +285,10 @@ func ParseISCSIStatus( cmd *exec.Cmd, done chan ServiceSummary ) {
   if err != nil { done <- tmp ; return }
   var lines = strings.Split(ob.String(), "\n")
   if len(lines) < 2 { tmp.ClientCount = 0 ; done <- tmp ; return }
-  tmp.ClientCount = len(lines[1:])
+  tmp.ClientCount = 0
+  for index,line := range(lines) {
+    if( line != "" && index >0 ){ tmp.ClientCount = tmp.ClientCount +1 }
+  }
   done <- tmp
 }
 

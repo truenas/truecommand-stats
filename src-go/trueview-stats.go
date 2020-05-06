@@ -294,8 +294,10 @@ func ParseISCSIStatus( cmd *exec.Cmd, done chan ServiceSummary ) {
 
 func main() {
   var out OutputJson
-  ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond) //failsafe - kill any process that runs too long
+  ctx, cancel := context.WithTimeout(context.Background(), 3000*time.Millisecond) //failsafe - kill any process that runs too long
   defer cancel()
+  ctxshort, cancelshort := context.WithTimeout(context.Background(), 1100*time.Millisecond) //short failsafe - kill any process that runs too long
+  defer cancelshort()
 
   out.Time = time.Now().Unix()
   //Read in the JSON
@@ -322,7 +324,7 @@ func main() {
   chanI := make(chan ServiceSummary)
   go ParseSMBStatus( exec.CommandContext(ctx, "smbstatus","-b"), chanI )
   chanJ := make(chan ServiceSummary)
-  go ParseNFSStatus( exec.CommandContext(ctx, "showmount","-a", "localhost"), chanJ )
+  go ParseNFSStatus( exec.CommandContext(ctxshort, "showmount","-a", "localhost"), chanJ )
   chanK := make(chan ServiceSummary)
   go ParseISCSIStatus( exec.CommandContext(ctx, "ctladm","islist"), chanK )
   //Assign all the channels to the output fields

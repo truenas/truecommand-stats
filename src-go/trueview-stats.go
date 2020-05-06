@@ -294,7 +294,7 @@ func ParseISCSIStatus( cmd *exec.Cmd, done chan ServiceSummary ) {
 
 func main() {
   var out OutputJson
-  ctx, cancel := context.WithTimeout(context.Background(), 1100*time.Millisecond) //failsafe - kill any process that runs too long
+  ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond) //failsafe - kill any process that runs too long
   defer cancel()
 
   out.Time = time.Now().Unix()

@@ -1,0 +1,25 @@
+#!/usr/bin/make -f
+
+clean:
+	rm -rf debian/truecommand-stats
+
+build:
+	@# Do nothing
+
+build-arch: build
+
+build-indep: build
+
+binary: binary-arch
+
+binary-arch: binary-stamp
+
+binary-indep: binary-stamp
+
+binary-stamp:
+	mkdir -p debian/truecommand-stats/usr/local/bin
+	cp -a binaries/linux/trueview-stats debian/truecommand-stats/usr/local/bin/trueview_stats.sh
+	chmod -R 755 debian/truecommand-stats/usr/local/bin/trueview_stats.sh
+	dh_lintian
+	dh_gencontrol
+	dh_builddeb

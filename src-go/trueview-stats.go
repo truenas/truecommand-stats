@@ -10,7 +10,50 @@ import (
 	"strings"
 	"strconv"
 	"context"
+	"runtime"
 )
+
+type vmstatCPU struct {
+	Idle string		`json:"idle"`
+	Name int		`json"name"`
+	System string	`json:"system"`
+	User string		`json:"user"`
+}
+type mpstatJsonCPU struct {
+	// Note - there are a few other minor CPU metrics in here too, (guest, gnice, nice, irq, soft, iowait, steal)
+        // These tend to add up to <1%, so adding all the metrics below together will equal <100%
+	Name string		`json:"cpu"`
+	Idle float64		`json:"idle"`
+	User float64		`json:"usr"`
+	System float64	`json:"sys"`
+}
+func (C mpstatJsonCPU) ToVmstat() vmstatCPU {
+  var vm vmstatCPU
+  vm.Name, _ = strconv.Atoi(C.Name)
+  vm.Idle = strconv.FormatFloat(C.Idle, 'f', 2, 32)
+  vm.System = strconv.FormatFloat(C.System, 'f', 2, 32)
+  vm.User =strconv.FormatFloat(C.User, 'f', 2, 32)
+  return vm
+}
+
+type mpstatJsonStats struct {
+	Timestamp string		`json:"timestamp"`
+	CpuLoad []mpstatJsonCPU		`json:"cpu-load"`
+}
+type mpstatJsonHost struct {
+	Stats []mpstatJsonStats	`json:"statistics"`
+}
+type mpstatJsonSys struct {
+	Hosts []mpstatJsonHost	`json:"hosts"`
+}
+type mpstatJson struct {
+	SysStat mpstatJsonSys	`json:"sysstat"`
+}
+
+type VmstatSummary struct {
+	Version string			`json:"__version"`
+	Cpu []vmstatCPU			`json:"cpu"`
+}
 
 type GstatSummary struct {
   Name string                               `json:"Name"`
@@ -88,6 +131,28 @@ func ReturnJson( cmd *exec.Cmd , done chan interface{}) {
   done <- ojs
 }
 
+func MpstatToVmstat( cmd *exec.Cmd, done chan interface{}) {
+  var out VmstatSummary
+  var ob bytes.Buffer
+  cmd.Stdout = &ob
+  err := cmd.Run()
+  if err == nil { 
+    var raw mpstatJson
+    json.Unmarshal(ob.Bytes(), &raw);
+    for _, host := range(raw.SysStat.Hosts) {
+      for _, stat := range(host.Stats) {
+        for _, cpu := range(stat.CpuLoad){
+          //Convert this CPU output format to the one used for the BSD version
+          out.Cpu = append(out.Cpu, cpu.ToVmstat())
+        }
+        break; //only one stats probe - make sure of that
+      }
+      break; //only one host - make sure of that
+    }
+  }
+  //bytes, _ := json.Marshal(out)
+  done <- out
+}
 
 func ParseGstat( cmd *exec.Cmd, done chan []GstatSummary) {
   var ob bytes.Buffer
@@ -304,7 +369,11 @@ func main() {
   chanA := make(chan interface{})
   go ReturnJson( exec.CommandContext(ctx, "vmstat","-s", "--libxo", "json"), chanA )
   chanB := make(chan interface{})
-  go ReturnJson( exec.CommandContext(ctx, "vmstat","-P", "-c", "2", "--libxo", "json"), chanB )
+  if(runtime.GOOS == "freebsd"){
+    go ReturnJson( exec.CommandContext(ctx, "vmstat","-P", "-c", "2", "--libxo", "json"), chanB )
+  }else if(runtime.GOOS == "linux"){
+    go MpstatToVmstat( exec.CommandContext(ctx, "mpstat", "-u", "-P",  "0-", "-o", "JSON"), chanB )
+  }
   chanC := make(chan interface{})
   go ReturnJson( exec.CommandContext(ctx, "netstat","-i", "-s", "--libxo", "json"), chanC ) //This always takes 1 second (no adjustments)
   chanD := make(chan []IfstatSummary)

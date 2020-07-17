@@ -13,6 +13,22 @@ import (
 	"runtime"
 )
 
+type vmstatMemorySummary struct {
+	ActiveB float64 	`json:"active-bytes"`
+	InactiveB float64 	`json:"inactive-bytes"`
+	FreeB float64 	`json:"free-bytes"`
+	LaundryB float64 	`json:"laundry-bytes,omitempty"`
+	WiredB float64 	`json:"wired-bytes"`
+	TotalB float64 	`json:"total-bytes,omitempty"`
+	SwapUsed float64	`json:"swap-used-bytes"`
+	SwapFree float64		`json:"swap-free-bytes"`
+	SwapTotal float64	`json:"swap-total-bytes"`
+}
+
+type vmstatMemory struct {
+	Summary vmstatMemorySummary		`json:"summary-statistics"`
+}
+
 type vmstatCPU struct {
 	Idle string		`json:"idle"`
 	Name int		`json"name"`
@@ -51,7 +67,6 @@ type mpstatJson struct {
 }
 
 type VmstatSummary struct {
-	Version string			`json:"__version"`
 	Cpu []vmstatCPU			`json:"cpu"`
 }
 
@@ -150,6 +165,44 @@ func MpstatToVmstat( cmd *exec.Cmd, done chan interface{}) {
       break; //only one host - make sure of that
     }
   }
+  //bytes, _ := json.Marshal(out)
+  done <- out
+}
+
+func ParseVmstatMemory( cmd *exec.Cmd, done chan interface{}) {
+  var out vmstatMemory
+  var ob bytes.Buffer
+  cmd.Stdout = &ob
+  err := cmd.Run()
+  if err != nil { done <- out ; return }
+  lines := strings.Split(ob.String(), "\n")
+  for _, line := range(lines) {
+    words := strings.Fields(line)
+    if len(words) != 4 || words[1] != "K" { continue }
+    val, err := strconv.ParseFloat(words[0], 64)
+    if(err != nil){ continue }
+    val = val * 1024 //convert from KB to B
+    if words[3] == "memory" {
+      switch words[2] {
+	case "active": out.Summary.ActiveB = val
+	case "inactive" : out.Summary.InactiveB = val
+	case "free" : out.Summary.FreeB = val
+	case "buffer" : out.Summary.WiredB = val //Not sure that buffer (Linux) == wired (FreeBSD), but close enough (wired is typically ZFS cache+kernel)
+	case "total" : out.Summary.TotalB = val
+      }
+    }else if words[3] == "swap" {
+      switch words[2] {
+	case "total" : out.Summary.SwapTotal = val
+	case "used" : out.Summary.SwapUsed = val
+	case "free" : out.Summary.SwapFree = val
+      }
+    }
+    /*
+	LaundryB float64 	`json:"laundry-bytes,omitempty"`
+	WiredB float64 	`json:"wired-bytes"`
+    */
+  }
+    
   //bytes, _ := json.Marshal(out)
   done <- out
 }
@@ -367,11 +420,12 @@ func main() {
   out.Time = time.Now().Unix()
   //Read in the JSON
   chanA := make(chan interface{})
-  go ReturnJson( exec.CommandContext(ctx, "vmstat","-s", "--libxo", "json"), chanA )
   chanB := make(chan interface{})
   if(runtime.GOOS == "freebsd"){
+    go ReturnJson( exec.CommandContext(ctx, "vmstat","-s", "--libxo", "json"), chanA )
     go ReturnJson( exec.CommandContext(ctx, "vmstat","-P", "-c", "2", "--libxo", "json"), chanB )
   }else if(runtime.GOOS == "linux"){
+    go ParseVmstatMemory( exec.CommandContext(ctx, "vmstat", "-s" , "-S", "K"), chanA )
     go MpstatToVmstat( exec.CommandContext(ctx, "mpstat", "-u", "-P",  "0-", "-o", "JSON"), chanB )
   }
   chanC := make(chan interface{})

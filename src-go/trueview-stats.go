@@ -422,9 +422,11 @@ func main() {
   chanA := make(chan interface{})
   chanB := make(chan interface{})
   if(runtime.GOOS == "freebsd"){
+    //TrueNAS CORE/ENTERPRISE
     go ReturnJson( exec.CommandContext(ctx, "vmstat","-s", "--libxo", "json"), chanA )
     go ReturnJson( exec.CommandContext(ctx, "vmstat","-P", "-c", "2", "--libxo", "json"), chanB )
   }else if(runtime.GOOS == "linux"){
+    //TrueNAS SCALE
     go ParseVmstatMemory( exec.CommandContext(ctx, "vmstat", "-s" , "-S", "K"), chanA )
     go MpstatToVmstat( exec.CommandContext(ctx, "mpstat", "-u", "-P",  "0-", "-o", "JSON"), chanB )
   }

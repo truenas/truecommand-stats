@@ -372,11 +372,14 @@ func ParseSMBStatus( cmd *exec.Cmd, done chan ServiceSummary ) {
 }
 
 func ParseNFSStatus( cmd *exec.Cmd, done chan ServiceSummary ) {
-  // Example output:
-  // All mount points on localhost:
-  // 10.234.16.36:/mnt/tank_v11/nfs_share
-  // 10.234.16.36:/mnt/tank_v11/tc_test_data
-  //
+  /* Example output of sockstat
+root@freenas[~]# sockstat -P tcp -4 -p 2049
+USER     COMMAND    PID   FD PROTO  LOCAL ADDRESS         FOREIGN ADDRESS
+root     nfsd       52019 5  tcp4   *:2049                *:*
+?        ?          ?     ?  tcp4   10.234.6.111:2049     10.234.6.44:793
+?        ?          ?     ?  tcp4   10.234.6.111:2049     10.234.6.
+*/
+
   // Note that the same address can have multiple connections
   var ob bytes.Buffer
   cmd.Stdout = &ob
@@ -387,15 +390,19 @@ func ParseNFSStatus( cmd *exec.Cmd, done chan ServiceSummary ) {
   if len(lines) < 2 { tmp.ClientCount = 0 ; done <- tmp ; return }
   tmp.ClientCount = 0
   for index,line := range(lines) {
-    if( line != "" && index > 0){ tmp.ClientCount = tmp.ClientCount +1 }
+    if( line != "" && index > 0 && !strings.Contains(line, "*:*") ){ tmp.ClientCount = tmp.ClientCount +1 }
   }
   done <- tmp
 }
 
 func ParseISCSIStatus( cmd *exec.Cmd, done chan ServiceSummary ) {
-  // Example output:
-  // ID Portal           Initiator name                       Target name
-  // 1 10.234.16.36     iqn.1993-08.org.debian:01:51124594c37 iqn.2005-10.org.freenas.ctl:test.iscsi
+ /* Example output of sockstat
+root@freenas[~]# sockstat -P tcp -4 -p 2049
+USER     COMMAND    PID   FD PROTO  LOCAL ADDRESS         FOREIGN ADDRESS
+root     nfsd       52019 5  tcp4   *:2049                *:*
+?        ?          ?     ?  tcp4   10.234.6.111:2049     10.234.6.44:793
+?        ?          ?     ?  tcp4   10.234.6.111:2049     10.234.6.
+*/
   var ob bytes.Buffer
   cmd.Stdout = &ob
   err := cmd.Run()
@@ -405,7 +412,7 @@ func ParseISCSIStatus( cmd *exec.Cmd, done chan ServiceSummary ) {
   if len(lines) < 2 { tmp.ClientCount = 0 ; done <- tmp ; return }
   tmp.ClientCount = 0
   for index,line := range(lines) {
-    if( line != "" && index >0 ){ tmp.ClientCount = tmp.ClientCount +1 }
+    if( line != "" && index > 0 && !strings.Contains(line, "*:*") ){ tmp.ClientCount = tmp.ClientCount +1 }
   }
   done <- tmp
 }
@@ -449,9 +456,9 @@ func main() {
   chanI := make(chan ServiceSummary)
   go ParseSMBStatus( exec.CommandContext(ctx, "smbstatus","-b"), chanI )
   chanJ := make(chan ServiceSummary)
-  go ParseNFSStatus( exec.CommandContext(ctxshort, "showmount","-a", "localhost"), chanJ )
+  go ParseNFSStatus( exec.CommandContext(ctxshort, "sockstat","-P", "tcp", "-4", "-p","2049"), chanJ )
   chanK := make(chan ServiceSummary)
-  go ParseISCSIStatus( exec.CommandContext(ctx, "ctladm","islist"), chanK )
+  go ParseISCSIStatus( exec.CommandContext(ctxshort, "sockstat","-P", "tcp", "-4", "-p","3260"), chanK )
   //Assign all the channels to the output fields
   out.MemSum, out.VmstatSum, out.NetSum, out.NetUsage, out.ProcStats, out.Gstat, out.ArcStats, out.TempStats, out.SMB, out.NFS, out.ISCSI = <-chanA, <-chanB, <-chanC, <-chanD, <-chanE, <-chanF, <-chanG, <-chanH, <-chanI, <-chanJ, <-chanK
   //Print out the JSON
